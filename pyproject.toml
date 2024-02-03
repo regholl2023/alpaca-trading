@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "alpaca_trading"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 
 
 [build-system]
