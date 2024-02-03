@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "alpaca-trading"
+version = "0.1.0"
+description = ""
+authors = ["roberte777 <robewilkes@yahoo.com>"]
+readme = "README.md"
+packages = [{include = "alpaca_trading"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
