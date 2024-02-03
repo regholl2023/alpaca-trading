@@ -18,6 +18,7 @@ load_dotenv()
 TARGET_VOL = 0.15
 TKR = "SPY"
 RF_TKR = "SHY"
+MARGIN_MULTIPLIER = 2
 
 print("Starting setup")
 client = StockHistoricalDataClient(
@@ -39,7 +40,7 @@ def subtract_trading_days(start_date, trading_days):
 today = datetime.now(timezone("America/New_York"))
 t_minus22 = subtract_trading_days(today, 25)
 
-print(today, t_minus22)
+# print(today, t_minus22)
 
 request = StockBarsRequest(
     symbol_or_symbols=[TKR],
@@ -59,12 +60,12 @@ vwap = pd.DataFrame(result.df["vwap"])
 vwap["diff"] = result.df["vwap"].diff(1).shift(-1)
 vwap["rm"] = vwap["diff"] / vwap["vwap"]
 
-print(vwap)
+# print(vwap)
 
 # get standard deviation of the vwap
 
 std = vwap["rm"].std()
-print(std)
+# print(std)
 
 annual_vol = std * (252**0.5)
 
@@ -97,3 +98,41 @@ market_order_data = MarketOrderRequest(
 
 # Market order
 # market_order = trading_client.submit_order(order_data=market_order_data)
+
+# Get current positions for SPY and SHY
+tkr_position = positions[TKR]
+rf_position = positions[RF_TKR]
+
+tkr_position_value = tkr_position.market_value
+rf_position_value = rf_position.market_value
+
+# rebalance portfolio
+if leverage > 1:
+    # If leverage is more than 1 hold no treasuries only SPY
+    # amount we want in spy is acount value * leverage
+    new_tkr_position_value = buying_power/MARGIN_MULTIPLIER * leverage
+    new_rf_position_value = 0
+else:
+    # Leverage less than 1 mix between treasuries and SPY
+    new_tkr_position_value = buying_power/MARGIN_MULTIPLIER * leverage
+    new_rf_position_value = buying_power/MARGIN_MULTIPLIER * (1-leverage)
+
+change_in_tkr = new_tkr_position_value - tkr_position_value
+change_in_rf = new_rf_position_value - rf_position_value
+
+
+def rebalance(ticker, position_change):
+    if position_change > 0:
+        market_order_data = MarketOrderRequest(
+            symbol=ticker, qty=position_change/latest_quote.price, side=OrderSide.BUY, time_in_force=TimeInForce.DAY
+        )
+        market_order = trading_client.submit_order(order_data=market_order_data)
+    else:
+        market_order_data = MarketOrderRequest(
+            symbol=ticker, qty=position_change/latest_quote.price, side=OrderSide.SELL, time_in_force=TimeInForce.DAY
+        )
+        market_order = trading_client.submit_order(order_data=market_order_data)
+
+rebalance(TKR, change_in_tkr)
+rebalance(RF_TKR, change_in_rf)
+
